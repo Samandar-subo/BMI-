@@ -1,0 +1,30 @@
+body {
+  font-family: Arial, sans-serif;
+  background: #f4f4f9;
+  text-align: center;
+}
+
+button {
+  padding: 10px 20px;
+  margin: 20px;
+  font-size: 16px;
+}
+
+.card {
+  background: white;
+  margin: 15px auto;
+  padding: 15px;
+  width: 80%;
+  max-width: 500px;
+  border-radius: 8px;
+  box-shadow: 0 0 8px rgba(0,0,0,0.1);
+}
+
+.card img {
+  max-width: 120px;
+  border-radius: 50%;
+}
+
+.news img {
+  max-width: 100%;
+}

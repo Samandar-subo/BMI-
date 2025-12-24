@@ -1,165 +1,87 @@
-const express = require('express');
-const path = require('path');
+const express = require("express");
+const axios = require("axios");
+require("dotenv").config();
+const path = require("path");
+
 const app = express();
-const port = 3000;
+const PORT = 3000;
 
-app.use(express.urlencoded({ extended: true }));
-app.use(express.static(path.join(__dirname, 'public')));
+app.use(express.static(path.join(__dirname, "public")));
 
-// Шаблон страницы
-const pageTemplate = (content) => ` 
-<!DOCTYPE html>
-<html lang="ru">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>BMI Calculator</title>
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            margin: 0;
-            padding: 0;
-            background: #f4f4f9;
-        }
-        .container {
-            width: 100%;
-            max-width: 600px;
-            margin: 50px auto;
-            padding: 20px;
-            background: white;
-            box-shadow: 0 0 10px rgba(0,0,0,0.1);
-        }
-        h1 {
-            color: #333;
-            text-align: center;
-        }
-        form {
-            margin-top: 20px;
-        }
-        label {
-            font-size: 1.2em;
-            margin: 10px 0;
-            display: block;
-        }
-        input[type="number"] {
-            width: 100%;
-            padding: 10px;
-            margin: 10px 0;
-            border: 1px solid #ddd;
-            border-radius: 4px;
-        }
-        button {
-            padding: 10px 20px;
-            background-color: #28a745;
-            color: white;
-            border: none;
-            border-radius: 5px;
-            cursor: pointer;
-        }
-        button:hover {
-            background-color: #218838;
-        }
-        .result-container {
-            text-align: center;
-        }
-        .error {
-            color: red;
-            font-size: 1.5em;
-        }
-        .category {
-            font-size: 1.5em;
-            font-weight: bold;
-        }
-        table {
-            margin-top: 20px;
-            width: 80%;
-            margin-left: auto;
-            margin-right: auto;
-        }
-        table, th, td {
-            border: 1px solid #ddd;
-            border-collapse: collapse;
-        }
-        th, td {
-            padding: 10px;
-            text-align: center;
-        }
-    </style>
-</head>
-<body>
-    <div class="container">
-        ${content}
-    </div>
-</body>
-</html>
-`;
+app.get("/api/data", async (req, res) => {
+  try {
+    // 1. Random User API
+    const userRes = await axios.get("https://randomuser.me/api/");
+    const user = userRes.data.results[0];
 
-// Главная страница с формой
-app.get('/', (req, res) => {
-    const form = `
-        <h1>Калькулятор Индекса Массы Тела (BMI)</h1>
-        <form action="/calculate-bmi" method="POST">
-            <label for="weight">Вес (кг):</label>
-            <input type="number" step="0.1" name="weight" placeholder="70.5" required>
+    const userData = {
+      firstName: user.name.first,
+      lastName: user.name.last,
+      gender: user.gender,
+      age: user.dob.age,
+      dob: user.dob.date.split("T")[0],
+      city: user.location.city,
+      country: user.location.country,
+      address: `${user.location.street.name}, ${user.location.street.number}`,
+      photo: user.picture.large
+    };
 
-            <label for="height">Рост (см):</label>
-            <input type="number" name="height" placeholder="175" required>
+    // 2. REST Countries API
+    const countryRes = await axios.get(
+      `https://restcountries.com/v3.1/name/${userData.country}`
+    );
+    const country = countryRes.data[0];
 
-            <p>Введите свой рост в сантиметрах!</p>
+    const countryData = {
+      name: country.name.common,
+      capital: country.capital ? country.capital[0] : "N/A",
+      languages: country.languages
+        ? Object.values(country.languages).join(", ")
+        : "N/A",
+      currencyCode: country.currencies
+        ? Object.keys(country.currencies)[0]
+        : "N/A",
+      flag: country.flags.png
+    };
 
-            <button type="submit">Рассчитать BMI</button>
-        </form>
-    `;
-    res.send(pageTemplate(form));
-});
+    // 3. Exchange Rate API
+    let ratesData = {};
+    if (countryData.currencyCode !== "N/A") {
+      const rateRes = await axios.get(
+        `https://v6.exchangerate-api.com/v6/${process.env.EXCHANGERATE_API_KEY}/latest/${countryData.currencyCode}`
+      );
 
-// Обработка запроса для расчета BMI
-app.post('/calculate-bmi', (req, res) => {
-    const weight = parseFloat(req.body.weight);
-    const heightCm = parseFloat(req.body.height);
-
-    if (isNaN(weight) || isNaN(heightCm) || weight <= 0 || heightCm <= 0) {
-        return res.send(pageTemplate(`
-            <div class="error">
-                Ошибка ввода: введите правильные положительные числа!
-                <a href="/">← Назад</a>
-            </div>
-        `));
+      ratesData = {
+        base: countryData.currencyCode,
+        usd: rateRes.data.conversion_rates.USD,
+        kzt: rateRes.data.conversion_rates.KZT
+      };
     }
 
-    const heightM = heightCm / 100;
-    const bmi = weight / (heightM * heightM);
+    // 4. News API
+    const newsRes = await axios.get(
+      `https://newsapi.org/v2/everything?q=${userData.country}&language=en&pageSize=5&apiKey=${process.env.NEWS_API_KEY}`
+    );
 
-    let category, color;
-    if (bmi < 18.5) {
-        category = 'Недовес';
-        color = '#e74c3c';
-    } else if (bmi < 25) {
-        category = 'Нормальный вес';
-        color = '#27ae60';
-    } else if (bmi < 30) {
-        category = 'Избыточный вес';
-        color = '#f39c12';
-    } else {
-        category = 'Ожирение';
-        color = '#c0392b';
-    }
+    const news = newsRes.data.articles.map(a => ({
+      title: a.title,
+      description: a.description,
+      image: a.urlToImage,
+      url: a.url
+    }));
 
-    const result = `
-        <div class="result-container">
-            <h1>Ваш BMI: ${bmi.toFixed(2)}</h1>
-            <p class="category" style="color: ${color};">Категория: ${category}</p>
-            <table>
-                <tr><th>Вес</th><th>Рост</th><th>BMI</th></tr>
-                <tr><td>${weight} кг</td><td>${heightCm} см</td><td>${bmi.toFixed(2)}</td></tr>
-            </table>
-            <a href="/">← Рассчитать снова</a>
-        </div>
-    `;
-    res.send(pageTemplate(result));
+    res.json({
+      user: userData,
+      country: countryData,
+      rates: ratesData,
+      news: news
+    });
+  } catch (err) {
+    console.error("API ERROR:", err.message);
+    res.status(500).json({ error: "Failed to fetch API data" });
+  }
 });
 
-// Запуск сервера
-app.listen(port, () => {
-    console.log(`Server is running on http://localhost:${port}`);
+app.listen(PORT, () => {
+  console.log(`Server running on http://localhost:${PORT}`);
 });

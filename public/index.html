@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>API Dashboard</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <h1>Random User API Dashboard</h1>
+  <button id="loadBtn">Get Random User</button>
+
+  <div id="content"></div>
+
+  <script>
+  document.getElementById("loadBtn").addEventListener("click", async () => {
+    try {
+      const res = await fetch("/api/data");
+      if (!res.ok) throw new Error("Request failed with status " + res.status);
+
+      const data = await res.json();
+      const { user, country, rates, news } = data;
+
+      document.getElementById("content").innerHTML = `
+        <div class="card">
+          <img src="${user.photo}" />
+          <h2>${user.firstName} ${user.lastName}</h2>
+          <p>Gender: ${user.gender}</p>
+          <p>Age: ${user.age}</p>
+          <p>DOB: ${user.dob}</p>
+          <p>City: ${user.city}</p>
+          <p>Country: ${user.country}</p>
+          <p>Address: ${user.address}</p>
+        </div>
+      `;
+    } catch (err) {
+      document.getElementById("content").innerHTML =
+        `<p style="color:red;">${err.message}</p>`;
+    }
+  });
+</script>
+
+</body>
+</html>
