@@ -4,7 +4,7 @@
     "dotenv": "^17.2.3",
     "express": "^5.2.1"
   },
-  "name": "web_tech(becrend)",
+  "name": "web_tech(backend)",
   "version": "1.0.0",
   "description": "",
   "main": "server.js",
